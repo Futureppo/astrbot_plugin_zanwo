@@ -25,6 +25,10 @@
 
 - NapCat的HTTP服务已启动并运行在 `http://127.0.0.1:3000` 地址（默认配置）
 
+
+![NapCat](https://raw.githubusercontent.com/Futureppo/astrbot_plugin_zanwo/master/napcat.png)
+
+
 - 若需修改端口或地址，请在代码中找到以下行并调整：
   ```python
   url = "http://127.0.0.1:3000/send_like"  # 根据实际情况修改
