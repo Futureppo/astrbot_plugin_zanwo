@@ -1,21 +1,65 @@
-from astrbot.api.event import filter, AstrMessageEvent, MessageEventResult
+from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Context, Star, register
-from astrbot.api import logger
+import aiohttp
+import random
+import json
 
-@register("helloworld", "YourName", "一个简单的 Hello World 插件", "1.0.0")
-class MyPlugin(Star):
+positive_responses = [
+    "给你点了50个赞捏",
+    "赞送出去啦！",
+    "为你点赞成功！",
+    "点了50个赞，快查收吧！",
+    "50个赞已送达，请注意查收~"
+    ]
+        
+negative_responses = [
+    "赞过啦！！",
+    "已经给你点过赞啦！",
+    "重复点赞可不行哦~",
+    "之前就赞过了呢！"
+    ]
+        
+error_responses = [
+    "赞你的时候出错了",
+    "哎呀，点赞失败了",
+    "点赞好像没成功",
+    ]
+
+@register("astrbot_plugin_zanwo", "Futureppo", "发送 赞我 自动点赞", "1.0.0")
+class zanwo(Star):
     def __init__(self, context: Context):
         super().__init__(context)
-    
-    # 注册指令的装饰器。指令名为 helloworld。注册成功后，发送 `/helloworld` 就会触发这个指令，并回复 `你好, {user_name}!`
-    @filter.command("helloworld")
-    async def helloworld(self, event: AstrMessageEvent):
-        '''这是一个 hello world 指令''' # 这是 handler 的描述，将会被解析方便用户了解插件内容。建议填写。
-        user_name = event.get_sender_name()
-        message_str = event.message_str # 用户发的纯文本消息字符串
-        message_chain = event.get_messages() # 用户所发的消息的消息链 # from astrbot.api.message_components import *
-        logger.info(message_chain)
-        yield event.plain_result(f"Hello, {user_name}, 你发了 {message_str}!") # 发送一条纯文本消息
-
-    async def terminate(self):
-        '''可选择实现 terminate 函数，当插件被卸载/停用时会调用。'''
+    @filter.regex(r'^赞我$')
+    async def like_me(self, event: AstrMessageEvent):
+        '''当用户发送 "赞我" 时，对该用户进行尽可能多的点赞，最多50个'''
+        sender_id = event.get_sender_id()
+        total_likes = 0
+        max_attempts = 6  
+        
+        try:
+            async with aiohttp.ClientSession() as session:
+                url = "http://127.0.0.1:3000/send_like"  #127.0.0.1:3000是你的http服务地址，和NapCat的地址一致
+                headers = {'Content-Type': 'application/json'}
+                
+                for attempt in range(max_attempts):
+                    payload = json.dumps({"user_id": sender_id, "times": 10})
+                    async with session.post(url, data=payload, headers=headers) as response:
+                        response_json = await response.json()
+                        print(response_json)
+                        
+                        if response_json['status'] == 'ok':
+                            total_likes += 10
+                        elif response_json['status'] == 'failed' and response_json['retcode'] == 200:
+                            # 赞过啦，停止循环
+                            break
+                        else:
+                            # 用户未开启点赞，点赞失败
+                            yield event.plain_result(f"用户隐私设置未开启点赞，点赞失败")
+                            return
+                
+                if total_likes > 0:
+                    yield event.plain_result(random.choice(positive_responses))
+                else:
+                    yield event.plain_result(random.choice(negative_responses))
+        except Exception as e:
+            yield event.plain_result(random.choice(error_responses))
