@@ -1,3 +1,12 @@
+</div>
+
+<div align="center">
+
+![:name](https://count.getloli.com/@astrbot_plugin_zanwo?name=astrbot_plugin_zanwo&theme=minecraft&padding=7&offset=0&align=top&scale=1&pixelated=1&darkmode=auto)
+
+</div>
+
+
 # astrbot_plugin_zanwo
 
 [![GitHub](https://img.shields.io/badge/作者-Futureppo-blue)](https://github.com/Futureppo)
