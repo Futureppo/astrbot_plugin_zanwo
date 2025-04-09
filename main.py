@@ -5,11 +5,11 @@ import random
 import json
 
 positive_responses = [
-    "给你点了50个赞捏",
+    "给你点了捏",
     "赞送出去啦！",
     "为你点赞成功！",
-    "点了50个赞，快查收吧！",
-    "50个赞已送达，请注意查收~"
+    "点了，快查收吧！",
+    "赞已送达，请注意查收~"
     ]
         
 negative_responses = [
