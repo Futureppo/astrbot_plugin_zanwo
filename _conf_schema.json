@@ -1,0 +1,8 @@
+{
+    "min_msg_length": {
+        "description": "测试",
+        "type": "string",
+        "hint": "阿巴阿巴",
+        "default":"Zhalsalr"
+    }
+}
