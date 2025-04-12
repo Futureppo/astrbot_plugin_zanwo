@@ -1,5 +1,7 @@
+from datetime import datetime
 import json
 from pathlib import Path
+from typing import Any
 
 from aiocqhttp import CQHttp
 from astrbot.api.event import filter
@@ -33,6 +35,10 @@ class zanwo(Star):
 
         self.subscribed_users: list[str] = []  # 订阅点赞的用户ID列表
         self._init_subscribed_users()
+        self.today_liked: dict[str, Any] = {
+            "date": None,
+            "status": False,
+        }  # 存储今日点赞状态（每次重启bot就会被刷新，后续考虑改为持久化存储）
 
     def _init_subscribed_users(self):
         """初始化订阅点赞的用户ID列表"""
@@ -74,10 +80,6 @@ class zanwo(Star):
             replys.append(reply)
         return replys
 
-    async def _auto_like(self, client: CQHttp):
-        """自动点赞"""
-        await self._like(client, self.subscribed_users)
-
     @filter.regex(r"^赞我$")
     async def like_me(self, event: AiocqhttpMessageEvent):
         """给用户点赞"""
@@ -85,10 +87,18 @@ class zanwo(Star):
         client = event.bot
         result = await self._like(client, [sender_id])
         yield event.plain_result(result[0])
-        # 触发自动点赞
-        await self._auto_like(client)
 
-    @filter.command("订阅点赞")
+        # 触发自动点赞
+        if (
+            self.today_liked["date"] is None
+            or self.today_liked["date"] != datetime.now().date()
+        ):
+            if not self.today_liked["status"]:
+                await self._like(client, self.subscribed_users)
+                self.today_liked["status"] = True
+                self.today_liked["date"] = datetime.now().date()
+
+    @filter.command("订阅赞")
     async def subscribe_like(self, event: AiocqhttpMessageEvent):
         """订阅点赞"""
         sender_id = event.get_sender_id()
@@ -99,7 +109,7 @@ class zanwo(Star):
         self._save_subscribed_users()
         yield event.plain_result("订阅成功！我将每天自动给你点赞~")
 
-    @filter.command("取消订阅点赞")
+    @filter.command("取消订阅赞")
     async def unsubscribe_like(self, event: AiocqhttpMessageEvent):
         """取消订阅点赞"""
         sender_id = event.get_sender_id()
@@ -110,11 +120,11 @@ class zanwo(Star):
         self._save_subscribed_users()
         yield event.plain_result("取消订阅成功！我将不再自动给你点赞~")
 
-    @filter.command("点赞列表")
+    @filter.command("订阅赞列表")
     async def like_list(self, event: AiocqhttpMessageEvent):
         """查看订阅点赞的用户ID列表"""
         if not self.subscribed_users:
             yield event.plain_result("当前没有订阅点赞的用户哦~")
             return
-        user_list = "\n".join(self.subscribed_users)
-        yield event.plain_result(f"当前订阅点赞的用户ID列表：\n{user_list}")
+        users_str = "\n".join(self.subscribed_users).strip()
+        yield event.plain_result(f"当前订阅点赞的用户ID列表：\n{users_str}")
