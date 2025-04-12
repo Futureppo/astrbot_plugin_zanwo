@@ -35,7 +35,7 @@
 ---
 
 ## 联系作者
-- **GitHub**：[Futureppo 的 GitHub](https://github.com/Futureppo)
+- **GitHub**：[Futureppo 的 GitHub](https://github.com/Futureppo)[Zhalsalr 的 GitHub](https://github.com/Zhalsalr)
 - **反馈**：欢迎在 [GitHub Issues](https://github.com/Futureppo/astrbot_plugin_zanwo/issues) 提交问题或建议
 
 ---
