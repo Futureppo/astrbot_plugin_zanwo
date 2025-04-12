@@ -16,25 +16,6 @@
 **名片点赞插件**，用户发送指令 `赞我` 后，自动向用户发送最多 50 次名片赞。
 
 
-# ⚠️ **需要配置！！需要配置！！请仔细阅读以下说明！！**
-
-
-### 1. 确保 NapCat 的HTTP服务正常运行
-
-插件依赖于 NapCat 的点赞接口，需满足以下条件：
-
-- NapCat的HTTP服务已启动并运行在 `http://127.0.0.1:3000` 地址（默认配置）
-
-
-![NapCat](https://raw.githubusercontent.com/Futureppo/astrbot_plugin_zanwo/master/napcat.png)
-
-
-- 若需修改端口或地址，请在代码中找到以下行并调整：
-  ```python
-   url = "http://127.0.0.1:3000/send_like"  # 根据你填写的修改
-  ```
-
-
 ## 使用方法
 
 ### 触发指令
