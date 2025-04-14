@@ -111,7 +111,7 @@ class zanwo(Star):
                 self.today_liked["status"] = True
                 self.today_liked["date"] = datetime.now().date()
 
-    @filter.command("订阅赞")
+    @filter.command("订阅点赞")
     async def subscribe_like(self, event: AiocqhttpMessageEvent):
         """订阅点赞""" 
         sender_id = event.get_sender_id()
@@ -122,7 +122,7 @@ class zanwo(Star):
         self._save_subscribed_users()
         yield event.plain_result("订阅成功！我将每天自动给你点赞~")
 
-    @filter.command("取消订阅赞")
+    @filter.command("取消订阅点赞")
     async def unsubscribe_like(self, event: AiocqhttpMessageEvent):
         """取消订阅点赞"""
         sender_id = event.get_sender_id()
@@ -133,7 +133,7 @@ class zanwo(Star):
         self._save_subscribed_users()
         yield event.plain_result("取消订阅成功！我将不再自动给你点赞~")
 
-    @filter.command("订阅赞列表")
+    @filter.command("订阅点赞列表")
     async def like_list(self, event: AiocqhttpMessageEvent):
         """查看订阅点赞的用户ID列表"""
 
