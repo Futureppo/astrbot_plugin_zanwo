@@ -1,16 +1,17 @@
-from datetime import datetime
+import random
 import json
+from datetime import datetime
 from pathlib import Path
 from typing import Any
-
 from aiocqhttp import CQHttp
+from astrbot.api import logger
 from astrbot.api.event import filter
 from astrbot.api.star import Context, Star, register
-import random
 from astrbot.core.config.astrbot_config import AstrBotConfig
 from astrbot.core.platform.sources.aiocqhttp.aiocqhttp_message_event import (
     AiocqhttpMessageEvent,
 )
+from astrbot.core.star.filter.permission import PermissionType
 
 # 存储订阅点赞的用户ID的json文件
 ZANWO_JSON_FILE = (
@@ -32,6 +33,10 @@ class zanwo(Star):
 
         self.success_responses: list[str] = config.get("success_responses", [])
         self.error_responses: list[str] = config.get("error_responses", [])
+        
+        # 群聊白名单
+        self.enable_white_list_groups: bool = config.get("enable_white_list_groups", False)
+        self.white_list_groups: list[str] = config.get("white_list_groups", [])
 
         self.subscribed_users: list[str] = []  # 订阅点赞的用户ID列表
         self._init_subscribed_users()
@@ -83,6 +88,15 @@ class zanwo(Star):
     @filter.regex(r"^赞我$")
     async def like_me(self, event: AiocqhttpMessageEvent):
         """给用户点赞"""
+        # 获取群组id
+        group_id = event.get_group_id()
+
+        # 检查群组id是否在白名单中, 若没填写白名单则不检查
+        if self.enable_white_list_groups and len(self.white_list_groups) != 0:
+            # 检查群组id是否在白名单中
+            if not self.check_group_id(group_id):
+                logger.info(f"群组 {group_id} 不在白名单中")
+                return
         sender_id = event.get_sender_id()
         client = event.bot
         result = await self._like(client, [sender_id])
@@ -98,9 +112,9 @@ class zanwo(Star):
                 self.today_liked["status"] = True
                 self.today_liked["date"] = datetime.now().date()
 
-    @filter.command("订阅赞")
+    @filter.command("订阅点赞")
     async def subscribe_like(self, event: AiocqhttpMessageEvent):
-        """订阅点赞"""
+        """订阅点赞""" 
         sender_id = event.get_sender_id()
         if sender_id in self.subscribed_users:
             yield event.plain_result("你已经订阅点赞了哦~")
@@ -109,7 +123,7 @@ class zanwo(Star):
         self._save_subscribed_users()
         yield event.plain_result("订阅成功！我将每天自动给你点赞~")
 
-    @filter.command("取消订阅赞")
+    @filter.command("取消订阅点赞")
     async def unsubscribe_like(self, event: AiocqhttpMessageEvent):
         """取消订阅点赞"""
         sender_id = event.get_sender_id()
@@ -120,11 +134,46 @@ class zanwo(Star):
         self._save_subscribed_users()
         yield event.plain_result("取消订阅成功！我将不再自动给你点赞~")
 
-    @filter.command("订阅赞列表")
+    @filter.command("订阅点赞列表")
     async def like_list(self, event: AiocqhttpMessageEvent):
         """查看订阅点赞的用户ID列表"""
+
         if not self.subscribed_users:
             yield event.plain_result("当前没有订阅点赞的用户哦~")
             return
         users_str = "\n".join(self.subscribed_users).strip()
         yield event.plain_result(f"当前订阅点赞的用户ID列表：\n{users_str}")
+
+    def check_group_id(self, group_id: str) -> bool:
+        """检查群号是否在白名单中
+
+        Args:
+            group_id (str): 群号
+
+        Returns:
+            bool: 是否在白名单中
+        """
+        if group_id in self.white_list_groups:
+            return True
+        return False
+
+    @filter.permission_type(PermissionType.ADMIN)
+    @filter.command("谁赞了bot")
+    async def get_profile_like(self, event: AiocqhttpMessageEvent):
+        """获取bot自身点赞列表"""
+        client = event.bot
+        data = await client.get_profile_like()
+        reply = ""
+        user_infos = data.get("favoriteInfo", {}).get("userInfos", [])
+        for user in user_infos:
+            if (
+                "nick" in user
+                and user["nick"]
+                and "count" in user
+                and user["count"] > 0
+            ):
+                reply += f"\n【{user['nick']}】赞了我{user['count']}次"
+        if not reply:
+            reply = "暂无有效的点赞信息"
+        url = await self.text_to_image(reply)
+        yield event.image_result(url)
