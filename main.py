@@ -4,6 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 from aiocqhttp import CQHttp
+import aiocqhttp
 from astrbot.api import logger
 from astrbot.api.event import filter
 from astrbot.api.star import Context, Star, register
@@ -18,6 +19,31 @@ ZANWO_JSON_FILE = (
     Path("data/plugins_data/astrbot_plugin_zanwo") / "zanwo_subscribe.json"
 )
 
+success_responses = [
+    "👍{total_likes}"
+    "赞了赞了",
+    "点赞成功！",
+    "给你点了{total_likes}个赞",
+    "赞送出去啦！一共{total_likes}个哦！",
+    "为你点赞成功！总共{total_likes}个！",
+    "点了{total_likes}个，快查收吧！",
+    "赞已送达，请注意查收~ 一共{total_likes}个！",
+    "给你点了{total_likes}个赞，记得回赞我哟！"
+    "赞了{total_likes}次，看看收到没？"
+    "点了{total_likes}赞，没收到可能是我被风控了",
+]
+
+limit_responses = [
+    "今天给你的赞已达上限",
+    "赞了那么多还不够吗？",
+    "别太贪心哟~",
+    "今天赞过啦！",
+    "今天已经赞过啦~",
+    "已经赞过啦~",
+    "还想要赞？不给了！",
+    "已经赞过啦，别再点啦！",
+]
+
 
 @register(
     "astrbot_plugin_zanwo",
@@ -29,13 +55,13 @@ ZANWO_JSON_FILE = (
 class zanwo(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
-        self.max_attempts = 5  # 点赞轮数，每轮点赞10次
 
-        self.success_responses: list[str] = config.get("success_responses", [])
-        self.error_responses: list[str] = config.get("error_responses", [])
-        
+        self.success_responses: list[str] = success_responses
+
         # 群聊白名单
-        self.enable_white_list_groups: bool = config.get("enable_white_list_groups", False)
+        self.enable_white_list_groups: bool = config.get(
+            "enable_white_list_groups", False
+        )
         self.white_list_groups: list[str] = config.get("white_list_groups", [])
 
         self.subscribed_users: list[str] = []  # 订阅点赞的用户ID列表
@@ -64,26 +90,33 @@ class zanwo(Star):
         with open(ZANWO_JSON_FILE, "w", encoding="utf-8") as f:
             json.dump(self.subscribed_users, f)
 
-    async def _like(self, client: CQHttp, ids: list[str]) -> list[str]:
+    async def _like(self, client: CQHttp, ids: list[str]) -> str:
         """
         点赞的核心逻辑
         :param client: CQHttp客户端
         :param ids: 用户ID列表
         """
-        replys: list[str] = []
         for id in ids:
             total_likes = 0
-            for _ in range(self.max_attempts):
+            for _ in range(5):
                 try:
                     await client.send_like(user_id=int(id), times=10)  # 点赞10次
                     total_likes += 10
-                except:  # noqa: E722
+                except aiocqhttp.exceptions.ActionFailed as e:
+                    error_message = str(e)
+                    if "今日同一好友点赞数已达上限" in error_message:
+                        error_reply = random.choice(limit_responses)
+                    elif "由于对方权限设置" in error_message:
+                        error_reply = "你设了权限不许陌生人赞你"
+                    else:
+                        error_reply = "不知道啥原因赞不了你"
                     break
-            reply = random.choice(
-                self.success_responses if total_likes > 0 else self.error_responses
-            )
-            replys.append(reply)
-        return replys
+            if total_likes > 0:
+                reply = random.choice(self.success_responses).format(total_likes=total_likes)
+            else:
+                reply = error_reply
+
+        return reply
 
     @filter.regex(r"^赞我$")
     async def like_me(self, event: AiocqhttpMessageEvent):
@@ -100,7 +133,7 @@ class zanwo(Star):
         sender_id = event.get_sender_id()
         client = event.bot
         result = await self._like(client, [sender_id])
-        yield event.plain_result(result[0])
+        yield event.plain_result(result)
 
         # 触发自动点赞
         if (
@@ -114,7 +147,7 @@ class zanwo(Star):
 
     @filter.command("订阅点赞")
     async def subscribe_like(self, event: AiocqhttpMessageEvent):
-        """订阅点赞""" 
+        """订阅点赞"""
         sender_id = event.get_sender_id()
         if sender_id in self.subscribed_users:
             yield event.plain_result("你已经订阅点赞了哦~")

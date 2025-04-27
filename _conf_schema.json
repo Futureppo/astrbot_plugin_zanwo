@@ -1,26 +1,4 @@
 {
-    "success_responses": {
-        "description": "点赞成功的回复",
-        "type": "list",
-        "hint": "后续可能改成llm生成",
-        "default": [
-            "给你点了捏",
-            "赞送出去啦！",
-            "为你点赞成功！",
-            "点了，快查收吧！",
-            "赞已送达，请注意查收~"
-        ]
-    },
-    "error_responses": {
-        "description": "点赞失败的回复",
-        "type": "list",
-        "hint": "后续可能改成llm生成",
-        "default": [
-            "赞你的时候出错了",
-            "哎呀，点赞失败了",
-            "点赞好像没成功"
-        ]
-    },
     "enable_white_list_groups": {
         "description": "是否启用群聊白名单",
         "type": "bool",
