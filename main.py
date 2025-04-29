@@ -110,6 +110,7 @@ class zanwo(Star):
                         error_reply = "你设了权限不许陌生人赞你"
                     else:
                         error_reply = "不知道啥原因赞不了你"
+                        logger.error(error_message)
                     break
             if total_likes > 0:
                 reply = random.choice(self.success_responses).format(total_likes=total_likes)
