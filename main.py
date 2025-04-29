@@ -49,7 +49,7 @@ limit_responses = [
     "astrbot_plugin_zanwo",
     "Futureppo",
     "发送 赞我 自动点赞",
-    "1.0.6",
+    "1.0.7",
     "https://github.com/Futureppo/astrbot_plugin_zanwo",
 )
 class zanwo(Star):
