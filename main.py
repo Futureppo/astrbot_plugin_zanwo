@@ -104,9 +104,9 @@ class zanwo(Star):
                     total_likes += 10
                 except aiocqhttp.exceptions.ActionFailed as e:
                     error_message = str(e)
-                    if "点赞数已达上限" in error_message:
+                    if "已达" in error_message:
                         error_reply = random.choice(limit_responses)
-                    elif "由于对方权限设置" in error_message:
+                    elif "权限" in error_message:
                         error_reply = "你设了权限不许陌生人赞你"
                     else:
                         error_reply = "不知道啥原因赞不了你"
