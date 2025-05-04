@@ -1,11 +1,7 @@
 import random
-import json
 from datetime import datetime
-from pathlib import Path
-from typing import Any
 from aiocqhttp import CQHttp
 import aiocqhttp
-from astrbot.api import logger
 from astrbot.api.event import filter
 from astrbot.api.star import Context, Star, register
 from astrbot.core.config.astrbot_config import AstrBotConfig
@@ -14,13 +10,9 @@ from astrbot.core.platform.sources.aiocqhttp.aiocqhttp_message_event import (
 )
 from astrbot.core.star.filter.permission import PermissionType
 
-# 存储订阅点赞的用户ID的json文件
-ZANWO_JSON_FILE = (
-    Path("data/plugins_data/astrbot_plugin_zanwo") / "zanwo_subscribe.json"
-)
-
+# 点赞成功回复
 success_responses = [
-    "👍{total_likes}"
+    "👍{total_likes}",
     "赞了赞了",
     "点赞成功！",
     "给你点了{total_likes}个赞",
@@ -33,6 +25,7 @@ success_responses = [
     "点了{total_likes}赞，没收到可能是我被风控了",
 ]
 
+# 点赞数到达上限回复
 limit_responses = [
     "今天给你的赞已达上限",
     "赞了那么多还不够吗？",
@@ -44,18 +37,30 @@ limit_responses = [
     "已经赞过啦，别再点啦！",
 ]
 
+# 陌生人点赞回复
+stranger_responses = [
+    "不加好友不赞",
+    "我和你有那么熟吗？",
+    "你谁呀？",
+    "你是我什么人凭啥要我赞你？",
+    "不想赞你这个陌生人",
+    "我不认识你，不赞！",
+    "加我好友了吗就想要我赞你？",
+    "滚！",
+]
+
 
 @register(
     "astrbot_plugin_zanwo",
     "Futureppo",
     "发送 赞我 自动点赞",
-    "1.0.6",
+    "1.0.7",
     "https://github.com/Futureppo/astrbot_plugin_zanwo",
 )
 class zanwo(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
-
+        self.config = config
         self.success_responses: list[str] = success_responses
 
         # 群聊白名单
@@ -63,32 +68,10 @@ class zanwo(Star):
             "enable_white_list_groups", False
         )
         self.white_list_groups: list[str] = config.get("white_list_groups", [])
-
-        self.subscribed_users: list[str] = []  # 订阅点赞的用户ID列表
-        self._init_subscribed_users()
-        self.today_liked: dict[str, Any] = {
-            "date": None,
-            "status": False,
-        }  # 存储今日点赞状态（每次重启bot就会被刷新，后续考虑改为持久化存储）
-
-    def _init_subscribed_users(self):
-        """初始化订阅点赞的用户ID列表"""
-        if ZANWO_JSON_FILE.exists():
-            with open(ZANWO_JSON_FILE, "r", encoding="utf-8") as f:
-                try:
-                    self.subscribed_users = json.load(f)
-                except json.JSONDecodeError:
-                    self.subscribed_users = []
-        else:
-            ZANWO_JSON_FILE.parent.mkdir(parents=True, exist_ok=True)
-            ZANWO_JSON_FILE.touch()
-            with open(ZANWO_JSON_FILE, "w", encoding="utf-8") as f:
-                json.dump(self.subscribed_users, f)
-
-    def _save_subscribed_users(self):
-        """同步订阅点赞的用户ID列表到JSON文件"""
-        with open(ZANWO_JSON_FILE, "w", encoding="utf-8") as f:
-            json.dump(self.subscribed_users, f)
+        # 订阅点赞的用户ID列表
+        self.subscribed_users: list[str] = config.get("subscribed_users", [])
+        # 点赞日期
+        self.zanwo_date: str = config.get("today_data", None)
 
     async def _like(self, client: CQHttp, ids: list[str]) -> str:
         """
@@ -109,10 +92,12 @@ class zanwo(Star):
                     elif "由于对方权限设置" in error_message:
                         error_reply = "你设了权限不许陌生人赞你"
                     else:
-                        error_reply = "不知道啥原因赞不了你"
+                        error_reply = random.choice(stranger_responses)
                     break
             if total_likes > 0:
-                reply = random.choice(self.success_responses).format(total_likes=total_likes)
+                reply = random.choice(self.success_responses).format(
+                    total_likes=total_likes
+                )
             else:
                 reply = error_reply
 
@@ -125,10 +110,8 @@ class zanwo(Star):
         group_id = event.get_group_id()
 
         # 检查群组id是否在白名单中, 若没填写白名单则不检查
-        if self.enable_white_list_groups and len(self.white_list_groups) != 0:
-            # 检查群组id是否在白名单中
-            if not self.check_group_id(group_id):
-                logger.info(f"群组 {group_id} 不在白名单中")
+        if self.enable_white_list_groups:
+            if group_id not in self.white_list_groups:
                 return
         sender_id = event.get_sender_id()
         client = event.bot
@@ -136,14 +119,10 @@ class zanwo(Star):
         yield event.plain_result(result)
 
         # 触发自动点赞
-        if (
-            self.today_liked["date"] is None
-            or self.today_liked["date"] != datetime.now().date()
-        ):
-            if not self.today_liked["status"]:
-                await self._like(client, self.subscribed_users)
-                self.today_liked["status"] = True
-                self.today_liked["date"] = datetime.now().date()
+        if self.subscribed_users and self.zanwo_date != datetime.now().date().strftime("%Y-%m-%d"):
+            await self._like(client, self.subscribed_users)
+            self.today_data = datetime.now().date().strftime("%Y-%m-%d")
+            self.config.save_config()
 
     @filter.command("订阅点赞")
     async def subscribe_like(self, event: AiocqhttpMessageEvent):
@@ -153,7 +132,7 @@ class zanwo(Star):
             yield event.plain_result("你已经订阅点赞了哦~")
             return
         self.subscribed_users.append(sender_id)
-        self._save_subscribed_users()
+        self.config.save_config()
         yield event.plain_result("订阅成功！我将每天自动给你点赞~")
 
     @filter.command("取消订阅点赞")
@@ -164,7 +143,7 @@ class zanwo(Star):
             yield event.plain_result("你还没有订阅点赞哦~")
             return
         self.subscribed_users.remove(sender_id)
-        self._save_subscribed_users()
+        self.config.save_config()
         yield event.plain_result("取消订阅成功！我将不再自动给你点赞~")
 
     @filter.command("订阅点赞列表")
@@ -176,19 +155,6 @@ class zanwo(Star):
             return
         users_str = "\n".join(self.subscribed_users).strip()
         yield event.plain_result(f"当前订阅点赞的用户ID列表：\n{users_str}")
-
-    def check_group_id(self, group_id: str) -> bool:
-        """检查群号是否在白名单中
-
-        Args:
-            group_id (str): 群号
-
-        Returns:
-            bool: 是否在白名单中
-        """
-        if group_id in self.white_list_groups:
-            return True
-        return False
 
     @filter.permission_type(PermissionType.ADMIN)
     @filter.command("谁赞了bot")
