@@ -21,8 +21,8 @@ success_responses = [
     "为{username}点赞成功！总共{total_likes}个！",
     "点了{total_likes}个，快查收吧！",
     "赞已送达，请注意查收~ 一共{total_likes}个！",
-    "给{username}点了{total_likes}个赞，记得回赞哟！"
-    "赞了{total_likes}次，看看收到没？"
+    "给{username}点了{total_likes}个赞，记得回赞哟！",
+    "赞了{total_likes}次，看看收到没？",
     "点了{total_likes}赞，没收到可能是我被风控了",
 ]
 
@@ -55,7 +55,7 @@ stranger_responses = [
     "astrbot_plugin_zanwo",
     "Futureppo",
     "发送 赞我 自动点赞",
-    "1.0.7",
+    "1.0.8",
     "https://github.com/Futureppo/astrbot_plugin_zanwo",
 )
 class zanwo(Star):
@@ -101,8 +101,14 @@ class zanwo(Star):
                     break
 
             reply = random.choice(self.success_responses) if total_likes > 0 else error_reply
-            format_reply = reply.format(username=username, total_likes=total_likes)
-            replys.append(format_reply)
+
+             # 检查 reply 中是否包含占位符，并根据需要进行替换
+            if "{username}" in reply:
+                reply = reply.replace("{username}", username)
+            if "{total_likes}" in reply:
+                reply = reply.replace("{total_likes}", str(total_likes))
+
+            replys.append(reply)
 
         return "\n".join(replys).strip()
 
@@ -147,6 +153,7 @@ class zanwo(Star):
     async def subscribe_like(self, event: AiocqhttpMessageEvent):
         """订阅点赞"""
         sender_id = event.get_sender_id()
+        event.session_id
         if sender_id in self.subscribed_users:
             yield event.plain_result("你已经订阅点赞了哦~")
             return

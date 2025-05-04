@@ -1,6 +1,6 @@
 name: astrbot_plugin_zanwo # 这是你的插件的唯一识别名。
 desc: QQ点赞插件，每天可点50个赞，还能定时自动点赞 # 插件简短描述
 help: 发送指令 赞我 点赞 # 插件的帮助信息
-version: v1.0.7 # 插件版本号。格式：v1.1.1 或者 v1.1
+version: v1.0.8 # 插件版本号。格式：v1.1.1 或者 v1.1
 author: Futureppo 、Zhalslar # 作者
 repo: https://github.com/Futureppo/astrbot_plugin_zanwo # 插件的仓库地址
