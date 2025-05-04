@@ -72,7 +72,7 @@ class zanwo(Star):
         # 订阅点赞的用户ID列表
         self.subscribed_users: list[str] = config.get("subscribed_users", [])
         # 点赞日期
-        self.zanwo_date: str = config.get("today_data", None)
+        self.zanwo_date: str = config.get("zanwo_date", None)
 
     async def _like(self, client: CQHttp, ids: list[str]) -> str:
         """
