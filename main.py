@@ -115,16 +115,18 @@ class zanwo(Star):
             if (isinstance(seg, Comp.At) and str(seg.qq) != self_id)
         ]
 
-    @filter.regex(r"^赞$")
+    @filter.regex(r"^赞.*")
     async def like_me(self, event: AiocqhttpMessageEvent):
         """给用户点赞"""
         # 检查群组id是否在白名单中, 若没填写白名单则不检查
         if self.enable_white_list_groups:
             if event.get_group_id() not in self.white_list_groups:
                 return
-
-        sender_id = event.get_sender_id()  if event.message_str == "赞我" else ""
-        target_ids = [sender_id] or self.get_ats(event)
+        target_ids = []
+        if event.message_str == "赞我":
+            target_ids.append(event.get_sender_id())
+        if not target_ids:
+            target_ids = self.get_ats(event)
 
         client = event.bot
         result = await self._like(client, target_ids)
@@ -147,7 +149,7 @@ class zanwo(Star):
             return
         self.subscribed_users.append(sender_id)
         self.config.save_config()
-        yield event.plain_result("订阅成功！我将每天自动给你点赞~")
+        yield event.plain_result("订阅成功！我将每天自动为你点赞")
 
     @filter.command("取消订阅点赞")
     async def unsubscribe_like(self, event: AiocqhttpMessageEvent):
@@ -158,7 +160,7 @@ class zanwo(Star):
             return
         self.subscribed_users.remove(sender_id)
         self.config.save_config()
-        yield event.plain_result("取消订阅成功！我将不再自动给你点赞~")
+        yield event.plain_result("已取消订阅！我将不再自动给你点赞")
 
     @filter.command("订阅点赞列表")
     async def like_list(self, event: AiocqhttpMessageEvent):
