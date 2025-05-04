@@ -5,6 +5,7 @@ import aiocqhttp
 from astrbot.api.event import filter
 from astrbot.api.star import Context, Star, register
 from astrbot.core.config.astrbot_config import AstrBotConfig
+import astrbot.api.message_components as Comp
 from astrbot.core.platform.sources.aiocqhttp.aiocqhttp_message_event import (
     AiocqhttpMessageEvent,
 )
@@ -87,9 +88,9 @@ class zanwo(Star):
                     total_likes += 10
                 except aiocqhttp.exceptions.ActionFailed as e:
                     error_message = str(e)
-                    if "今日同一好友点赞数已达上限" in error_message:
+                    if "已达" in error_message:
                         error_reply = random.choice(limit_responses)
-                    elif "由于对方权限设置" in error_message:
+                    elif "权限" in error_message:
                         error_reply = "你设了权限不许陌生人赞你"
                     else:
                         error_reply = random.choice(stranger_responses)
@@ -103,23 +104,36 @@ class zanwo(Star):
 
         return reply
 
-    @filter.regex(r"^赞我$")
+    @staticmethod
+    def get_ats(event: AiocqhttpMessageEvent) -> list[str]:
+        """获取被at者们的id列表"""
+        messages = event.get_messages()
+        self_id = event.get_self_id()
+        return [
+            str(seg.qq)
+            for seg in messages
+            if (isinstance(seg, Comp.At) and str(seg.qq) != self_id)
+        ]
+
+    @filter.regex(r"^赞$")
     async def like_me(self, event: AiocqhttpMessageEvent):
         """给用户点赞"""
-        # 获取群组id
-        group_id = event.get_group_id()
-
         # 检查群组id是否在白名单中, 若没填写白名单则不检查
         if self.enable_white_list_groups:
-            if group_id not in self.white_list_groups:
+            if event.get_group_id() not in self.white_list_groups:
                 return
-        sender_id = event.get_sender_id()
+
+        sender_id = event.get_sender_id()  if event.message_str == "赞我" else ""
+        target_ids = [sender_id] or self.get_ats(event)
+
         client = event.bot
-        result = await self._like(client, [sender_id])
+        result = await self._like(client, target_ids)
         yield event.plain_result(result)
 
         # 触发自动点赞
-        if self.subscribed_users and self.zanwo_date != datetime.now().date().strftime("%Y-%m-%d"):
+        if self.subscribed_users and self.zanwo_date != datetime.now().date().strftime(
+            "%Y-%m-%d"
+        ):
             await self._like(client, self.subscribed_users)
             self.today_data = datetime.now().date().strftime("%Y-%m-%d")
             self.config.save_config()
