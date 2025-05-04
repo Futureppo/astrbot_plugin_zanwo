@@ -16,21 +16,21 @@ success_responses = [
     "👍{total_likes}",
     "赞了赞了",
     "点赞成功！",
-    "给你点了{total_likes}个赞",
+    "给{username}点了{total_likes}个赞",
     "赞送出去啦！一共{total_likes}个哦！",
-    "为你点赞成功！总共{total_likes}个！",
+    "为{username}点赞成功！总共{total_likes}个！",
     "点了{total_likes}个，快查收吧！",
     "赞已送达，请注意查收~ 一共{total_likes}个！",
-    "给你点了{total_likes}个赞，记得回赞我哟！"
+    "给{username}点了{total_likes}个赞，记得回赞哟！"
     "赞了{total_likes}次，看看收到没？"
     "点了{total_likes}赞，没收到可能是我被风控了",
 ]
 
 # 点赞数到达上限回复
 limit_responses = [
-    "今天给你的赞已达上限",
+    "今天给{username}的赞已达上限",
     "赞了那么多还不够吗？",
-    "别太贪心哟~",
+    "{username}别太贪心哟~",
     "今天赞过啦！",
     "今天已经赞过啦~",
     "已经赞过啦~",
@@ -80,8 +80,12 @@ class zanwo(Star):
         :param client: CQHttp客户端
         :param ids: 用户ID列表
         """
+        replys = []
         for id in ids:
             total_likes = 0
+            username = (await client.get_stranger_info(user_id=int(id))).get(
+                "nickname", "未知用户"
+            )
             for _ in range(5):
                 try:
                     await client.send_like(user_id=int(id), times=10)  # 点赞10次
@@ -95,14 +99,12 @@ class zanwo(Star):
                     else:
                         error_reply = random.choice(stranger_responses)
                     break
-            if total_likes > 0:
-                reply = random.choice(self.success_responses).format(
-                    total_likes=total_likes
-                )
-            else:
-                reply = error_reply
 
-        return reply
+            reply = random.choice(self.success_responses) if total_likes > 0 else error_reply
+            format_reply = reply.format(username=username, total_likes=total_likes)
+            replys.append(format_reply)
+
+        return "\n".join(replys).strip()
 
     @staticmethod
     def get_ats(event: AiocqhttpMessageEvent) -> list[str]:
