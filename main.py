@@ -127,7 +127,8 @@ class zanwo(Star):
             target_ids.append(event.get_sender_id())
         if not target_ids:
             target_ids = self.get_ats(event)
-
+        if not target_ids:
+            return
         client = event.bot
         result = await self._like(client, target_ids)
         yield event.plain_result(result)
@@ -173,7 +174,7 @@ class zanwo(Star):
         yield event.plain_result(f"当前订阅点赞的用户ID列表：\n{users_str}")
 
     @filter.permission_type(PermissionType.ADMIN)
-    @filter.command("谁赞了bot")
+    @filter.command("谁赞了bot", alias={"谁赞了你"})
     async def get_profile_like(self, event: AiocqhttpMessageEvent):
         """获取bot自身点赞列表"""
         client = event.bot

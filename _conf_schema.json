@@ -1,9 +1,4 @@
 {
-    "enable_white_list_groups": {
-        "description": "是否启用群聊白名单",
-        "type": "bool",
-        "default": false
-    },
     "white_list_groups": {
         "description": "群聊白名单",
         "type": "list",
@@ -13,13 +8,14 @@
     "subscribed_users": {
         "description": "订阅点赞的用户",
         "type": "list",
-        "hint": "填写Q号",
+        "hint": "此变量用来存储订阅点赞用户的Q号,可不填",
         "default": []
     },
     "zanwo_date": {
         "description": "点赞日期",
         "type": "string",
         "hint": "如果检测到当前日期与点赞日期不同时，则触发自动点赞，并更新点赞日期",
+        "invisible": true,
         "default": "2025-01-01"
     }
 }
