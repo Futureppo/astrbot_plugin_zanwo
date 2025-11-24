@@ -37,7 +37,7 @@ _✨ [astrbot](https://github.com/AstrBotDevs/AstrBot) 赞我插件 ✨_
 
 ### Q: 为什么点赞失败？
 
-- 可能是因为用户隐私设置未开启陌生人点赞权限，
+- 可能是因为用对方隐私设置未开启陌生人点赞权限，
 - 或者已达到QQ点赞次数限制
 - 或者是你没加bot好友，而bot今日给陌生人点赞量也已到达上限
 
@@ -45,8 +45,6 @@ _✨ [astrbot](https://github.com/AstrBotDevs/AstrBot) 赞我插件 ✨_
 
 ## 🐔 联系作者
 
-- **GitHub**：[Futureppo 的 GitHub](https://github.com/Futureppo)
-- **GitHub**：[Zhalsalr 的 GitHub](https://github.com/Zhalsalr)
 - **反馈**：欢迎在 [GitHub Issues](https://github.com/Futureppo/astrbot_plugin_zanwo/issues) 提交问题或建议
 
 ---
