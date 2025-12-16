@@ -124,9 +124,9 @@ class zanwo(Star):
     async def like_me(self, event: AiocqhttpMessageEvent):
         """给用户点赞"""
         # 检查群组id是否在白名单中, 若没填写白名单则不检查
-        if self.white_list_groups:
-            group_id = str(event.get_group_id())
-            if group_id not in self.white_list_groups:
+        group_id = event.get_group_id()
+        if group_id and self.white_list_groups:
+            if str(group_id) not in self.white_list_groups:
                 return
         target_ids = []
         if event.message_str == "赞我":
