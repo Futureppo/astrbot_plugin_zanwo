@@ -1,5 +1,8 @@
+import asyncio
+import logging
 import random
 from datetime import datetime
+from typing import Optional
 from aiocqhttp import CQHttp
 import aiocqhttp
 from astrbot.api.event import filter
@@ -10,6 +13,8 @@ from astrbot.core.platform.sources.aiocqhttp.aiocqhttp_message_event import (
     AiocqhttpMessageEvent,
 )
 from astrbot.core.star.filter.permission import PermissionType
+
+logger = logging.getLogger(__name__)
 
 # 点赞成功回复
 success_responses = [
@@ -63,13 +68,56 @@ class zanwo(Star):
         super().__init__(context)
         self.config = config
         self.success_responses: list[str] = success_responses
+        self._auto_like_tasks = set()
 
         # 群聊白名单
         self.white_list_groups: list[str] = config.get("white_list_groups", [])
         # 订阅点赞的用户ID列表
         self.subscribed_users: list[str] = config.get("subscribed_users", [])
         # 点赞日期
-        self.zanwo_date: str = config.get("zanwo_date", None)
+        self.zanwo_date: Optional[str] = config.get("zanwo_date", None)
+
+    def _is_group_allowed(self, event: AiocqhttpMessageEvent) -> bool:
+        group_id = event.get_group_id()
+        if group_id and self.white_list_groups:
+            return str(group_id) in self.white_list_groups
+        return True
+
+    async def _run_like(
+        self, event: AiocqhttpMessageEvent, target_ids: list[str]
+    ) -> Optional[str]:
+        if not self._is_group_allowed(event):
+            return None
+        if not target_ids:
+            return None
+        return await self._like(event.bot, target_ids)
+
+    def _save_zanwo_date(self, date_value: str) -> None:
+        self.zanwo_date = date_value
+        self.config["zanwo_date"] = date_value
+        self.config.save_config()
+
+    async def _trigger_auto_like(self, client: CQHttp):
+        today = datetime.now().date().strftime("%Y-%m-%d")
+        subscribed_users = list(self.subscribed_users)
+        if not subscribed_users or self.zanwo_date == today:
+            return
+        self._save_zanwo_date(today)
+        await self._like(client, subscribed_users)
+
+    def _handle_auto_like_task(self, task: asyncio.Task) -> None:
+        self._auto_like_tasks.discard(task)
+        try:
+            task.result()
+        except Exception:
+            logger.exception("Auto-like task failed")
+
+    def _schedule_auto_like(self, client: CQHttp) -> None:
+        if not self.subscribed_users:
+            return
+        task = asyncio.create_task(self._trigger_auto_like(client))
+        self._auto_like_tasks.add(task)
+        task.add_done_callback(self._handle_auto_like_task)
 
     async def _like(self, client: CQHttp, ids: list[str]) -> str:
         """
@@ -99,7 +147,7 @@ class zanwo(Star):
 
             reply = random.choice(self.success_responses) if total_likes > 0 else error_reply
 
-             # 检查 reply 中是否包含占位符，并根据需要进行替换
+            # 检查 reply 中是否包含占位符，并根据需要进行替换
             if "{username}" in reply:
                 reply = reply.replace("{username}", username)
             if "{total_likes}" in reply:
@@ -123,29 +171,37 @@ class zanwo(Star):
     @filter.regex(r"^赞.*")
     async def like_me(self, event: AiocqhttpMessageEvent):
         """给用户点赞"""
-        # 检查群组id是否在白名单中, 若没填写白名单则不检查
-        group_id = event.get_group_id()
-        if group_id and self.white_list_groups:
-            if str(group_id) not in self.white_list_groups:
-                return
         target_ids = []
         if event.message_str == "赞我":
             target_ids.append(event.get_sender_id())
         if not target_ids:
             target_ids = self.get_ats(event)
-        if not target_ids:
+        result = await self._run_like(event, target_ids)
+        if not result:
             return
-        client = event.bot
-        result = await self._like(client, target_ids)
         yield event.plain_result(result)
+        self._schedule_auto_like(event.bot)
 
-        # 触发自动点赞
-        if self.subscribed_users and self.zanwo_date != datetime.now().date().strftime(
-            "%Y-%m-%d"
-        ):
-            await self._like(client, self.subscribed_users)
-            self.today_data = datetime.now().date().strftime("%Y-%m-%d")
-            self.config.save_config()
+    @filter.llm_tool(name="like_qq_profile")
+    async def like_qq_profile(self, event: AiocqhttpMessageEvent, target: str = "self"):
+        """给 QQ 名片点赞。
+
+        Args:
+            target(string): 点赞目标，可填 self、me、我，或明确的 QQ 号。未明确提供时默认给当前发言者点赞。
+        """
+        normalized_target = target.strip().lower() if target else "self"
+        if normalized_target in {"", "self", "me", "我", "自己", "我自己"}:
+            target_ids = [event.get_sender_id()]
+        elif target.strip().isdigit():
+            target_ids = [target.strip()]
+        else:
+            return "只能给当前发言者点赞，或给明确提供的 QQ 号点赞。"
+
+        result = await self._run_like(event, target_ids)
+        if not result:
+            return "当前会话不允许使用点赞功能。"
+        self._schedule_auto_like(event.bot)
+        return result
 
     @filter.command("订阅点赞")
     async def subscribe_like(self, event: AiocqhttpMessageEvent):
